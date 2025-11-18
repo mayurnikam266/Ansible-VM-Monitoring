@@ -103,8 +103,8 @@ ssh_args = -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/jaiswaladi246/Ansible-VM-Monitor.git
-   cd Ansible-VM-Monitor
+   git clone https://github.com/mayurnikam266/Ansible-VM-Monitoring.git
+   cd Ansible-VM-Monitoring
    ```
 
 2. **Configure AWS credentials**:
