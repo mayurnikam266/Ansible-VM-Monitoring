@@ -468,8 +468,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📚 Credits
 
-This project uses learning references/content from **Aditya Jaiswal**  
-GitHub Profile: [@jaiswaladi246](https://github.com/jaiswaladi246)
+This project uses learning references/content from **Aditya Jaiswal**  ("Devops Shacks")
 
 
 ##  Acknowledgments
