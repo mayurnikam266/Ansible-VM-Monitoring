@@ -1,6 +1,5 @@
 # VM Health Monitoring with Ansible
 
-![Ansible Logo](images/media/image22.png)
 
 ![Architecture Diagram](images/media/image13.png)
 
