@@ -1,489 +1,192 @@
-# Ansible VM Monitor
+# VM Health Monitoring with Ansible
 
-A comprehensive Ansible-based solution for monitoring virtual machines on AWS EC2, collecting system metrics (CPU, Memory, Disk usage), and sending beautifully formatted email reports with real-time health status indicators.
+![Ansible Logo](images/media/image22.png)
 
-## 🚀 Features
+![Architecture Diagram](images/media/image13.png)
 
-- **Automated VM Discovery**: Dynamic inventory using AWS EC2 plugin
-- **Real-time Metrics Collection**: CPU, Memory, and Disk usage monitoring
-- **Beautiful HTML Reports**: Animated, responsive email reports with status indicators
-- **Multi-OS Support**: Compatible with both Debian/Ubuntu and RedHat/CentOS systems
-- **Configurable Alerting**: Email notifications with customizable thresholds
-- **Health Status Indicators**: Color-coded status badges (Healthy, Warning, Critical)
+## Overview
 
-## 📋 Prerequisites
+This project provides a fully automated solution for monitoring the
+health of AWS EC2 instances using Ansible. It leverages Dynamic
+Inventory to automatically discover instances, collects vital system
+metrics (CPU, RAM, Disk), and sends formatted HTML email alerts
+detailing the health status of your infrastructure.
 
-### Required Software
-- Ansible 2.9+ with the following collections:
-  - `ansible.posix`
-  - `amazon.aws`
-- Python 3.6+
-- AWS CLI configured with appropriate credentials
+### Key Features
 
-### AWS Requirements
-- AWS Account with EC2 access
-- IAM user with the following permissions:
-  - `ec2:DescribeInstances`
-  - `ec2:DescribeInstanceStatus`
-- EC2 instances tagged with `Environment: dev`
-- SSH access to target EC2 instances
+- Dynamic Discovery: Automatically finds EC2 instances tagged with
+  Environment=dev.
 
-### Email Configuration
-- SMTP server access (Gmail, corporate email, etc.)
-- Valid email credentials for sending reports
+- Automated Setup: Scripts to tag instances and inject SSH keys.
 
-## 🏗️ Project Structure
+- Health Metrics: Monitors CPU, Memory, and Disk usage.
 
-```
-Ansible-VM-Monitor/
-├── ansible.cfg                          # Ansible configuration
-├── playbook.yaml                        # Main orchestration playbook
-├── collect_metrics.yaml                 # VM metrics collection tasks
-├── send_report.yaml                     # Email reporting tasks
-├── group_vars/
-│   └── all.yaml                         # Global variables and email config
-├── inventory/
-│   └── aws_ec2.yaml                     # AWS EC2 dynamic inventory
-└── templates/
-    └── report_email_animated.html.j2    # HTML email template
-```
+- Reporting: Sends visual HTML email reports with health status badges.
 
-## ⚙️ Configuration
+## Prerequisites
 
-### 1. AWS Configuration
+- OS: Ubuntu 20.04/22.04 (Control Node)
 
-Edit `inventory/aws_ec2.yaml`:
+- AWS Account: With access to create/read EC2 instances.
 
-```yaml
-plugin: amazon.aws.aws_ec2
-regions:
-  - ap-south-1                    # Change to your AWS region
-filters:
-  tag:Environment: dev            # Filter by Environment tag
-  instance-state-name: running    # Only running instances
-compose:
-  ansible_host: public_ip_address # Use public IP for connection
-keyed_groups:
-  - key: tags.Environment
-    prefix: env
-```
+- IAM User: With Programmatic Access (Access Key & Secret Key).
 
-### 2. Email Configuration
+- SSH Key Pair: A .pem file valid for the target instances.
 
-Edit `group_vars/all.yaml`:
+## Part 1: System Installation & Setup
 
-```yaml
-smtp_server: "smtp.gmail.com"     # Your SMTP server
-smtp_port: 587                    # SMTP port
-email_user: "your-email@gmail.com"    # Sender email
-email_pass: "your-app-password"        # Email password/app password
-alert_recipient: "admin@company.com"   # Recipient email
-```
+Perform these steps on your Ansible Control Node.
 
-**Note**: For Gmail, use App Passwords instead of your regular password.
+### 1.1 Creating Virtual Machines (EC2 Instances)
 
-### 3. Ansible Configuration
+![EC2 Instances](images/media/image20.png)
 
-The `ansible.cfg` file contains optimized settings:
+In this setup, Master-Node VM is my Control node and others are my managed nodes.
 
-```ini
-[defaults]
-inventory = ./inventory/aws_ec2.yaml
-host_key_checking = False
-remote_user = ubuntu              # Change if using different user
-gathering = smart
+**For managed nodes give tagging "Environment = dev"**
 
-[ssh_connection]
-ssh_args = -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-```
+![Instance Tagging](images/media/image26.png)
 
-## 🚦 Usage
+**Inbound rules for Master-node (Control-node)**
 
-### Quick Start
+![Control Node Security Group](images/media/image4.png)
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/mayurnikam266/Ansible-VM-Monitoring.git
-   cd Ansible-VM-Monitoring
-   ```
+**Inbound rules for Managed Nodes**
 
-2. **Configure AWS credentials**:
-   ```bash
-   aws configure
-   ```
+![Managed Nodes Security Group](images/media/image15.png)
 
-3. **Update configuration files**:
-   - Set your AWS region in `inventory/aws_ec2.yaml`
-   - Configure email settings in `group_vars/all.yaml`
+### 1.2 Connecting to Master Node, Update System & Install Ansible
 
-4. **Test inventory discovery**:
-   ```bash
-   ansible-inventory --list
-   ```
+Update the package repositories and install the official Ansible PPA for the latest version.
 
-5. **Run the monitoring playbook**:
-   ```bash
-   ansible-playbook playbook.yaml
-   ```
-
-### Manual Execution
-
-Run individual components:
+![Ansible Installation](images/media/image17.png)
 
 ```bash
-# Collect metrics only
-ansible-playbook collect_metrics.yaml
-
-# Send report only (requires existing metrics)
-ansible-playbook send_report.yaml
+sudo apt update && sudo apt upgrade -y
+sudo apt install software-properties-common -y
+sudo add-apt-repository --yes --update ppa:ansible/ansible
+sudo apt install ansible -y
 ```
 
-### Automated Scheduling
+### 1.3 Install AWS CLI
 
-Add to crontab for automated monitoring:
+The AWS CLI is required for the dynamic inventory plugin to interact with the AWS API.
+
+![AWS CLI Installation](images/media/image17.png)
 
 ```bash
-# Edit crontab
-crontab -e
-
-# Add entry for hourly monitoring
-0 * * * * cd /path/to/Ansible-VM-Monitor && ansible-playbook playbook.yaml
-
-# Add entry for daily reports at 9 AM
-0 9 * * * cd /path/to/Ansible-VM-Monitor && ansible-playbook playbook.yaml
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
 ```
 
-## 📊 Metrics Collected
+### 1.4 Configure AWS Credentials
 
-### System Metrics
+![AWS Configuration](images/media/image9.png)
 
-| Metric | Description | Collection Method |
-|--------|-------------|-------------------|
-| **CPU Usage** | Percentage of CPU utilization | `mpstat` command with 1-second sampling |
-| **Memory Usage** | Percentage of RAM utilization | `free` command output parsing |
-| **Disk Usage** | Percentage of root filesystem usage | `df` command for root partition |
+### 1.5 Set Up Python Environment
 
-### Health Status Thresholds
+Ansible requires specific Python libraries (boto3, botocore) to talk to AWS. We will use a virtual environment to keep the system clean.
 
-| Status | CPU | Memory | Disk | Color |
-|--------|-----|--------|------|-------|
-| **Healthy** | < 50% | < 50% | < 50% | 🟢 Green |
-| **Warning** | 50-80% | 50-80% | 50-80% | 🟡 Yellow |
-| **Critical** | > 80% | > 80% | > 80% | 🔴 Red |
+![Python Virtual Environment](images/media/image10.png)
 
-## 📧 Email Report Features
+![Installing Dependencies](images/media/image12.png)
 
-### Report Contents
+![Verification](images/media/image1.png)
 
-- **Summary Dashboard**: Overview with total VMs and average metrics
-- **Detailed Table**: Per-VM metrics with progress bars and status indicators
-- **Visual Elements**: 
-  - Animated progress bars
-  - Color-coded status badges
-  - Responsive design for mobile/desktop
-  - Professional gradient styling
+## Part 2: Project Configuration
 
-### Sample Report Structure
+Create the project structure and configuration files.
 
-```
-🚀 VM Health Dashboard
-Real-time Infrastructure Monitoring & Analytics
+### 2.1 Project Directory Structure
 
-Summary:
-- 🖥️ Virtual Machines: 5
-- 🔥 Average CPU: 45.2%
-- 📊 Average Memory: 67.8%
-- 💾 Average Disk: 34.5%
+![Project Structure](images/media/image24.png)
 
-Detailed Metrics:
-┌─────────────────┬─────────┬────────┬──────────┐
-│ Hostname        │ CPU     │ Memory │ Disk     │
-├─────────────────┼─────────┼────────┼──────────┤
-│ web-server-01   │ 23.5%   │ 45.2%  │ 78.9%    │
-│ api-server-02   │ 67.8%   │ 89.1%  │ 23.4%    │
-└─────────────────┴─────────┴────────┴──────────┘
-```
+### 2.2 Ansible Configuration (ansible.cfg)
 
-## 🔧 Customization
+Create ansible.cfg in the project root. This tells Ansible to use the dynamic inventory and ignore host key checking (essential for cloud environments).
 
-### Modifying Thresholds
+![Ansible Configuration](images/media/image27.png)
 
-Edit the HTML template to change status thresholds:
+### 2.3 Dynamic Inventory (inventory/aws_ec2.yaml)
 
-```jinja2
-# In templates/report_email_animated.html.j2
-{% if vm.cpu|float < 50 %}        # Change from 50 to your threshold
-  <span class="status-badge status-healthy">
-{% elif vm.cpu|float < 80 %}      # Change from 80 to your threshold
-  <span class="status-badge status-warning">
-{% else %}
-  <span class="status-badge status-critical">
-{% endif %}
-```
+This file defines how Ansible finds your EC2 instances.
 
-### Adding New Metrics
+![Dynamic Inventory Configuration](images/media/image5.png)
 
-1. **Add collection task** in `collect_metrics.yaml`:
-   ```yaml
-   - name: Get network usage
-     shell: "cat /proc/net/dev | grep eth0"
-     register: network_usage
-   
-   - name: Update metrics fact
-     set_fact:
-       vm_metrics:
-         hostname: "{{ inventory_hostname }}"
-         cpu: "{{ cpu_usage.stdout | float | round(2) }}"
-         mem: "{{ mem_usage.stdout | float | round(2) }}"
-         disk: "{{ disk_usage.stdout | float | round(2) }}"
-         network: "{{ network_usage.stdout }}"  # New metric
-   ```
+## Part 3: Infrastructure Preparation
 
-2. **Update HTML template** to display new metric
-3. **Modify report aggregation** in `send_report.yaml`
+Before running the monitoring playbooks, we need to prepare the AWS
+instances.
 
-### Styling Customization
+### 3.1 Tag EC2 Instances
 
-The HTML template uses CSS3 features:
-- **Gradient backgrounds**: Modify color stops in CSS gradients
-- **Animations**: Adjust `@keyframes` for different effects
-- **Responsive breakpoints**: Change media query values
-- **Color scheme**: Update CSS custom properties
+Run this script to verify your instances are running and assign them
+sequential names (e.g .web-01, web-02).
 
-## 🛠️ Troubleshooting
+![](images/media/image23.png){width="7.59375in"
+height="4.932292213473316in"}
 
-### Common Issues
+![](images/media/image8.png){width="7.1875in"
+height="1.7760422134733158in"}
 
-#### 1. Inventory Discovery Fails
-```
-ERROR! Invalid plugin FQDN (amazon.aws.aws_ec2)
-```
-**Solution**: Install AWS collection:
-```bash
-ansible-galaxy collection install amazon.aws
-```
+### 3.2 Inject SSH Keys
 
-#### 2. SSH Connection Issues
-```
-UNREACHABLE! => {"msg": "Failed to connect to the host via ssh"}
-```
-**Solutions**:
-- Verify SSH key is added to ssh-agent
-- Check security group allows SSH (port 22)
-- Ensure public IP is accessible
-- Verify `remote_user` in ansible.cfg matches EC2 instance user
+This script uses the dynamic inventory to find the public IPs and copies
+your local SSH public key to the remote servers, allowing passwordless
+Ansible execution.
 
-#### 3. Email Sending Fails
-```
-FAILED! => {"msg": "Authentication failed"}
-```
-**Solutions**:
-- Use App Passwords for Gmail (not regular password)
-- Enable "Less secure app access" if using basic auth
-- Check firewall allows SMTP traffic (port 587/465)
-- Verify SMTP server and port settings
+![SSH Key Injection Script](images/media/image11.png)
 
-#### 4. Metrics Collection Fails
-```
-ERROR! failed: [instance] => {"msg": "sysstat not found"}
-```
-**Solution**: The playbook automatically installs `sysstat`, but if it fails:
-```bash
-# Manual installation on target servers
-sudo apt-get update && sudo apt-get install -y sysstat  # Ubuntu/Debian
-sudo yum install -y sysstat                             # CentOS/RHEL
-```
+**Giving execution permission to the script:**
 
-#### 5. Permission Denied Errors
-```
-FAILED! => {"msg": "sudo: no tty present and no askpass program specified"}
-```
-**Solutions**:
-- Ensure SSH user has sudo privileges
-- Add user to sudoers: `usermod -aG sudo username`
-- Configure passwordless sudo if needed
-
-### Debug Mode
-
-Enable verbose output for troubleshooting:
-```bash
-ansible-playbook playbook.yaml -v     # Verbose
-ansible-playbook playbook.yaml -vv    # More verbose
-ansible-playbook playbook.yaml -vvv   # Very verbose with connection debugging
-```
-
-### Testing Components
-
-Test individual components:
+![Permission Setup](images/media/image17.png)
 
 ```bash
-# Test inventory
-ansible-inventory --list -i inventory/aws_ec2.yaml
-
-# Test connectivity
-ansible all -m ping
-
-# Test metric collection
-ansible all -m shell -a "mpstat 1 1"
-
-# Test email sending (localhost)
-ansible localhost -m mail -a "to=test@example.com subject='Test' body='Test message'"
+chmod +x scripts/copy-publickey.sh
 ```
 
-## 📈 Performance Considerations
+![Script Execution](images/media/image14.png)
 
-### Optimization Tips
+## Part 4: Creating Playbook Files
 
-1. **Parallel Execution**:
-   ```yaml
-   # In ansible.cfg
-   [defaults]
-   forks = 20          # Increase parallel execution
-   ```
+### 4.1 collect_metrics.yml
 
-2. **Fact Gathering**:
-   ```yaml
-   # Disable unnecessary fact gathering
-   gather_facts: false  # Add to plays that don't need facts
-   ```
+![Collect Metrics Playbook](images/media/image21.png)
 
-3. **SSH Optimization**:
-   ```yaml
-   # In ansible.cfg
-   [ssh_connection]
-   ssh_args = -o ControlMaster=auto -o ControlPersist=60s
-   pipelining = True
-   ```
+### 4.2 send_report.yml
 
-### Resource Requirements
+![Send Report Playbook](images/media/image3.png)
 
-| Component | CPU | Memory | Network |
-|-----------|-----|--------|---------|
-| **Ansible Controller** | 1 vCPU | 2GB RAM | 1Mbps |
-| **Per Target VM** | ~1% impact | ~10MB | ~1KB/s |
-| **Email Report** | Minimal | ~5MB | ~100KB |
+### 4.3 group_vars/all.yml
 
-## 🔒 Security Best Practices
+![Group Variables](images/media/image6.png)
 
-### SSH Security
-- Use SSH key-based authentication (no passwords)
-- Implement bastion hosts for private networks
-- Regularly rotate SSH keys
-- Use SSH agent forwarding carefully
+### 4.4 playbook.yml
 
-### AWS Security
-- Follow principle of least privilege for IAM policies
-- Use temporary credentials when possible
-- Enable CloudTrail for API auditing
-- Regularly review and rotate access keys
+![Main Playbook](images/media/image2.png)
 
-### Email Security
-- Use App Passwords instead of account passwords
-- Enable 2FA on email accounts
-- Consider encrypted email solutions for sensitive data
-- Validate recipient email addresses
+## Part 5: Running the Monitor
 
-### Ansible Security
-- Store sensitive variables in Ansible Vault:
-  ```bash
-  ansible-vault create group_vars/vault.yaml
-  ansible-vault encrypt_string 'password123' --name 'email_pass'
-  ```
-- Use `no_log: true` for sensitive tasks
-- Limit playbook access with proper file permissions
+### 5.1 Verify with "--check"
 
-## 📚 Advanced Configuration
+![Dry Run Verification](images/media/image19.png)
 
-### Multi-Environment Setup
+### 5.2 Running the Playbook
 
-Create environment-specific configurations:
+![Playbook Execution](images/media/image25.png)
 
-```yaml
-# group_vars/dev.yaml
-smtp_server: "dev-smtp.company.com"
-alert_recipient: "dev-team@company.com"
+## Part 6: Email Report
 
-# group_vars/prod.yaml
-smtp_server: "prod-smtp.company.com"
-alert_recipient: "ops-team@company.com"
-```
+![Email Report Sample](images/media/image7.png)
 
-### Custom Filtering
+## Troubleshooting
 
-Filter instances by multiple criteria:
-
-```yaml
-# inventory/aws_ec2.yaml
-filters:
-  tag:Environment: dev
-  tag:Team: backend
-  instance-state-name: running
-  instance-type: [t3.micro, t3.small]
-```
-
-### Webhook Integration
-
-Add webhook notifications:
-
-```yaml
-- name: Send webhook notification
-  uri:
-    url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-    method: POST
-    body_format: json
-    body:
-      text: "VM Health Report: {{ collected_metrics | length }} VMs monitored"
-```
-
-## 🤝 Contributing
-
-### Development Setup
-
-1. **Fork the repository**
-2. **Create a feature branch**:
-   ```bash
-   git checkout -b feature/new-metric
-   ```
-3. **Make your changes**
-4. **Test thoroughly**:
-   ```bash
-   ansible-lint playbook.yaml
-   ansible-playbook --check playbook.yaml
-   ```
-5. **Submit a pull request**
-
-### Code Style
-
-- Use 2-space indentation for YAML
-- Follow Ansible best practices
-- Add comments for complex logic
-- Test on multiple OS distributions
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👨‍💻 Author
-**Mayur Nikam** 
-
-## 📚 Credits
-
-This project uses learning references/content from **Aditya Jaiswal**  ("Devops Shacks")
-
-
-##  Acknowledgments
-
-- Ansible community for excellent documentation
-- AWS for comprehensive EC2 API
-- Bootstrap and modern CSS frameworks for design inspiration
-
-## 📞 Support
-
-For support and questions:
-- Create an issue in the GitHub repository
-- Check the troubleshooting section above
-- Review Ansible documentation for advanced usage
-
----
-
-*Last updated: November 18, 2025*
+| Issue | Solution |
+|-------|----------|
+| boto3 not found | Ensure you activated the virtual env: `source ansible-env/bin/activate` |
+| Permission Denied (Public Key) | Run `copy-publickey.sh` again. Ensure your local id_rsa.pub exists. |
+| No hosts found | Check AWS Console. Ensure instances have tag Environment: dev and are Running. |
+| Email Authentication Failed | If using Gmail, ensure you are using an App Password, not your login password. |
